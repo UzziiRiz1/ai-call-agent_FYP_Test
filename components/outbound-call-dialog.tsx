@@ -27,6 +27,8 @@ export function OutboundCallDialog() {
 
     setLoading(true)
     try {
+      console.log("[v0] Making outbound call to:", phoneNumber)
+
       const response = await fetch("/api/twilio/outbound", {
         method: "POST",
         headers: {
@@ -39,16 +41,20 @@ export function OutboundCallDialog() {
         }),
       })
 
+      const data = await response.json()
+      console.log("[v0] Response:", data)
+
       if (response.ok) {
-        const data = await response.json()
         setOpen(false)
         setPhoneNumber("")
         setMessage("")
         setPatientName("")
         alert(`Call initiated successfully! Call SID: ${data.callSid}`)
+        // Refresh the page to show the new call
+        window.location.reload()
       } else {
-        const data = await response.json()
-        alert(`Failed to make call: ${data.error}`)
+        console.error("[v0] Call failed:", data)
+        alert(`Failed to make call: ${data.error}\n${data.details || ""}`)
       }
     } catch (error) {
       console.error("[v0] Error making call:", error)

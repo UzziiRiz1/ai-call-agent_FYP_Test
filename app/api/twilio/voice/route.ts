@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Gather speech input with AI-powered greeting
     const gather = twiml.gather({
       input: ["speech"],
-      action: "/api/twilio/process-speech",
+      action: `${process.env.NEXT_PUBLIC_APP_URL || "https://v0-ai-call-agent-one.vercel.app"}/api/twilio/process-speech`,
       method: "POST",
       speechTimeout: "auto",
       speechModel: "phone_call",
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     )
 
     // If no input, redirect
-    twiml.redirect("/api/twilio/voice")
+    twiml.redirect(`${process.env.NEXT_PUBLIC_APP_URL || "https://v0-ai-call-agent-one.vercel.app"}/api/twilio/voice`)
 
     return new NextResponse(twiml.toString(), {
       headers: {

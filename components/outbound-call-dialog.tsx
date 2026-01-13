@@ -21,13 +21,18 @@ export function OutboundCallDialog() {
   const [phoneNumber, setPhoneNumber] = useState("")
   const [message, setMessage] = useState("")
   const [patientName, setPatientName] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
   const handleMakeCall = async () => {
     if (!phoneNumber || !message) return
 
     setLoading(true)
+    setError(null)
+
     try {
       console.log("[v0] Making outbound call to:", phoneNumber)
+      console.log("[v0] Message:", message)
+      console.log("[v0] Patient name:", patientName)
 
       const response = await fetch("/api/twilio/outbound", {
         method: "POST",
@@ -42,7 +47,8 @@ export function OutboundCallDialog() {
       })
 
       const data = await response.json()
-      console.log("[v0] Response:", data)
+      console.log("[v0] Response status:", response.status)
+      console.log("[v0] Response data:", data)
 
       if (response.ok) {
         setOpen(false)
@@ -50,15 +56,15 @@ export function OutboundCallDialog() {
         setMessage("")
         setPatientName("")
         alert(`Call initiated successfully! Call SID: ${data.callSid}`)
-        // Refresh the page to show the new call
         window.location.reload()
       } else {
-        console.error("[v0] Call failed:", data)
-        alert(`Failed to make call: ${data.error}\n${data.details || ""}`)
+        const errorMsg = `${data.error}${data.details ? "\n\nDetails: " + data.details : ""}`
+        console.error("[v0] Call failed:", errorMsg)
+        setError(errorMsg)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("[v0] Error making call:", error)
-      alert("Failed to make call. Check console for details.")
+      setError(`Network error: ${error.message || "Failed to connect to server"}`)
     } finally {
       setLoading(false)
     }
@@ -78,6 +84,13 @@ export function OutboundCallDialog() {
           <DialogDescription>Initiate a real automated AI call using your Twilio phone number</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          {error && (
+            <div className="p-4 bg-destructive/10 border border-destructive rounded-lg">
+              <p className="text-sm font-medium text-destructive mb-1">Error</p>
+              <p className="text-xs text-destructive/80 whitespace-pre-wrap">{error}</p>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="patientName">Patient Name (Optional)</Label>
             <Input
@@ -93,11 +106,13 @@ export function OutboundCallDialog() {
             <Input
               id="phone"
               type="tel"
-              placeholder="+1234567890"
+              placeholder="03142752970"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">Include country code (e.g., +1 for US)</p>
+            <p className="text-xs text-muted-foreground">
+              Include country code (e.g., +1 for US) or enter Pakistani number
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="message">Initial Message *</Label>

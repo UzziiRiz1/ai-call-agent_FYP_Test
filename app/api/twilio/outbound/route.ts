@@ -47,7 +47,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create TwiML for outbound call
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "https://v0-ai-call-agent-one.vercel.app"
+
     const twimlUrl = `${appUrl}/api/twilio/outbound-twiml?message=${encodeURIComponent(message)}&name=${encodeURIComponent(patientName || "Patient")}`
 
     console.log("[v0] App URL:", appUrl)

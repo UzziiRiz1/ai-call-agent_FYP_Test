@@ -87,15 +87,7 @@ export default function CallsPage() {
             <h1 className="text-3xl font-bold text-foreground mb-2">Call Management</h1>
             <p className="text-muted-foreground">View and manage all calls in the system</p>
           </div>
-          <div className="flex gap-2">
-            <OutboundCallDialog />
-            <Button asChild variant="outline">
-              <Link href="/dashboard">
-                <Phone className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Link>
-            </Button>
-          </div>
+          <OutboundCallDialog />
         </div>
 
         {/* Filters */}

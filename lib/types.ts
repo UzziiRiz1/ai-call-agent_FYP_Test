@@ -8,32 +8,15 @@ export type CallIntent =
   | "unknown"
 export type Priority = "low" | "medium" | "high" | "critical"
 
-export interface Call {
-  _id?: string
-  callId: string
-  patientName: string
-  phoneNumber: string
-  status: CallStatus
-  intent: CallIntent
-  priority: Priority
-  duration: number
-  transcript: string
-  emergencyDetected: boolean
-  aiResponse: string
-  timestamp: Date
-  completedAt?: Date
-  callSid?: string
-  direction?: "inbound" | "outbound"
-  recordingUrl?: string
-  recordingSid?: string
-  recordingDuration?: number
-  fullTranscript?: string
-  transcriptConfidence?: number
-  transcriptionStatus?: string
-  emergencySeverity?: string
-  emergencyKeywords?: string[]
-  initiatedBy?: string
-}
+export type { IUser } from "../models/User"
+export type { IDoctor } from "../models/Doctor"
+export type { IAppointment, AppointmentStatus } from "../models/Appointment"
+export type { ICall } from "../models/Call"
+
+// Declare ICall before using it
+export type ICall = {}
+
+export interface Call extends ICall {}
 
 export interface User {
   _id?: string
@@ -52,3 +35,5 @@ export interface DashboardStats {
   averageDuration: number
   intentDistribution: Record<CallIntent, number>
 }
+
+export type { CallStatus, CallIntent, Priority } from "../models/Call"

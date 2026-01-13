@@ -130,18 +130,26 @@ export default function DashboardPage() {
         </div>
 
         {/* Additional Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <StatsCard
             title="Avg. Call Duration"
             value={`${stats?.averageDuration || 0}s`}
             icon={Clock}
             colorClass="bg-purple-500/10 text-purple-600"
           />
-          <div className="flex items-center gap-4 justify-center">
-            <OutboundCallDialog />
-            <Button onClick={handleSimulateCall} variant="outline" size="lg">
-              Simulate Call for Demo
-            </Button>
+          <div className="col-span-2 bg-card border border-border rounded-lg p-6 flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-foreground mb-1">Make Real Calls</h3>
+              <p className="text-sm text-muted-foreground">Initiate automated AI-powered calls via Twilio</p>
+            </div>
+            <div className="flex gap-3">
+              <OutboundCallDialog />
+              {process.env.NODE_ENV === "development" && (
+                <Button onClick={handleSimulateCall} variant="ghost" size="sm">
+                  Simulate (Dev)
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 

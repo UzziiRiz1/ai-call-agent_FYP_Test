@@ -1,4 +1,20 @@
 import type { CallIntent } from "@/lib/types"
+import { generateAIResponse as generateOpenAIResponse } from "@/lib/openai-client"
+
+export async function generateAIResponseWithOpenAI(
+  transcript: string,
+  intent: CallIntent,
+  emergencyDetected: boolean,
+): Promise<string> {
+  try {
+    const response = await generateOpenAIResponse(transcript, intent, emergencyDetected)
+    console.log("[v0] AI Generated Response:", response)
+    return response
+  } catch (error) {
+    console.error("[v0] Falling back to template-based responses:", error)
+    return generateAIResponse(intent, "Patient", emergencyDetected)
+  }
+}
 
 export function generateAIResponse(intent: CallIntent, patientName: string, emergencyDetected: boolean): string {
   if (emergencyDetected) {
@@ -46,4 +62,4 @@ export function generateFollowUpInstructions(intent: CallIntent, emergencyDetect
   }
 }
 
-export const generateResponse = generateAIResponse
+export const generateResponse = generateAIResponseWithOpenAI

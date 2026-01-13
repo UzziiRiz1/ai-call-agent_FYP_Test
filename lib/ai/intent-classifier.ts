@@ -1,4 +1,5 @@
 import type { CallIntent } from "@/lib/types"
+import { classifyIntentWithGPT } from "@/lib/openai-client"
 
 const INTENT_KEYWORDS: Record<CallIntent, string[]> = {
   appointment: [
@@ -54,6 +55,17 @@ const INTENT_KEYWORDS: Record<CallIntent, string[]> = {
     "overdose",
     "severe",
   ],
+}
+
+export async function classifyIntentWithAI(transcript: string): Promise<CallIntent> {
+  try {
+    const result = await classifyIntentWithGPT(transcript)
+    console.log("[v0] AI Intent Classification:", result)
+    return result.intent
+  } catch (error) {
+    console.error("[v0] Falling back to keyword-based classification:", error)
+    return classifyIntent(transcript)
+  }
 }
 
 export function classifyIntent(transcript: string): CallIntent {

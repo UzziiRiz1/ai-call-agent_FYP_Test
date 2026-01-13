@@ -1,4 +1,5 @@
 import type { Priority } from "@/lib/types"
+import { detectEmergencyWithGPT } from "@/lib/openai-client"
 
 const EMERGENCY_KEYWORDS = [
   "emergency",
@@ -74,4 +75,26 @@ export function getEmergencyContext(transcript: string): string {
   }
 
   return `Emergency detected: Keywords found - ${matchedKeywords.join(", ")}`
+}
+
+export async function detectEmergencyWithAI(
+  transcript: string,
+): Promise<{ isEmergency: boolean; severity: string; keywords: string[] }> {
+  try {
+    const result = await detectEmergencyWithGPT(transcript)
+    console.log("[v0] AI Emergency Detection:", result)
+    return {
+      isEmergency: result.isEmergency,
+      severity: result.severity,
+      keywords: result.keywords,
+    }
+  } catch (error) {
+    console.error("[v0] Falling back to keyword-based emergency detection:", error)
+    const isEmergency = detectEmergency(transcript)
+    return {
+      isEmergency,
+      severity: isEmergency ? "high" : "none",
+      keywords: isEmergency ? EMERGENCY_KEYWORDS.filter((k) => transcript.toLowerCase().includes(k)) : [],
+    }
+  }
 }

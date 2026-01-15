@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getDb } from "@/lib/mongodb"
 import { getSession } from "@/lib/auth"
 
-export async function GET(request: NextRequest, { params }: { params: { callId: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ callId: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSession()
 
@@ -31,7 +32,8 @@ export async function GET(request: NextRequest, { params }: { params: { callId: 
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { callId: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ callId: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSession()
 
@@ -63,7 +65,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { callId
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { callId: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ callId: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSession()
 

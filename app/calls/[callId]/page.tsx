@@ -17,11 +17,18 @@ export default function CallDetailPage({ params }: { params: Promise<{ callId: s
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let pollInterval: NodeJS.Timeout
+
     const fetchData = async () => {
       try {
-        const [userRes, callRes] = await Promise.all([fetch("/api/auth/me"), fetch(`/api/calls/${callId}`)])
+        const [userRes, callRes] = await Promise.all([
+          // Only fetch user on initial load if not set, or we could separate this. 
+          // For simplicity, we'll keep it but typically we'd separate user fetch.
+          user ? Promise.resolve({ ok: true, json: async () => ({ user }) }) : fetch("/api/auth/me"),
+          fetch(`/api/calls/${callId}`)
+        ])
 
-        if (userRes.ok) {
+        if (userRes.ok && !user) {
           const userData = await userRes.json()
           setUser(userData.user)
         }
@@ -29,6 +36,11 @@ export default function CallDetailPage({ params }: { params: Promise<{ callId: s
         if (callRes.ok) {
           const callData = await callRes.json()
           setCall(callData.call)
+
+          // If call is active/in-progress, continue polling
+          if (["active", "in-progress", "ringing"].includes(callData.call.status)) {
+            // Polling logic is handled by setting interval below
+          }
         }
       } catch (error) {
         console.error("[v0] Error fetching call details:", error)
@@ -38,7 +50,13 @@ export default function CallDetailPage({ params }: { params: Promise<{ callId: s
     }
 
     fetchData()
-  }, [callId])
+
+    pollInterval = setInterval(fetchData, 1000)
+
+    return () => {
+      clearInterval(pollInterval)
+    }
+  }, [callId, user])
 
   const getStatusColor = (status: string) => {
     switch (status) {

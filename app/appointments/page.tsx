@@ -11,19 +11,23 @@ import { format } from "date-fns"
 import Link from "next/link"
 import type { IAppointment } from "@/models/Appointment"
 
+import { AddAppointmentDialog } from "@/components/add-appointment-dialog"
+
 export default function AppointmentsPage() {
     const [user, setUser] = useState<any>(null)
     const [appointments, setAppointments] = useState<IAppointment[]>([])
-    const [filteredAppointments, setFilteredAppointments] = useState<IAppointment[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
+    const [statusFilter, setStatusFilter] = useState<string>("all")
+    const [refreshTrigger, setRefreshTrigger] = useState(0)
 
     useEffect(() => {
         const fetchData = async () => {
+            setLoading(true)
             try {
                 const [userRes, appointmentsRes] = await Promise.all([
                     fetch("/api/auth/me"),
-                    fetch("/api/appointments")
+                    fetch(`/api/appointments?status=${statusFilter === "all" ? "" : statusFilter}`)
                 ])
 
                 if (userRes.ok) {
@@ -35,7 +39,6 @@ export default function AppointmentsPage() {
                     const data = await appointmentsRes.json()
                     if (data.success) {
                         setAppointments(data.appointments)
-                        setFilteredAppointments(data.appointments)
                     }
                 }
             } catch (error) {
@@ -46,22 +49,22 @@ export default function AppointmentsPage() {
         }
 
         fetchData()
-    }, [])
+    }, [statusFilter, refreshTrigger])
 
-    useEffect(() => {
-        const filtered = appointments.filter(apt =>
-            apt.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            apt.doctorName?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-        setFilteredAppointments(filtered)
-    }, [searchTerm, appointments])
+    // Client-side search for name/doctor (could optionally be server-side too)
+    const filteredAppointments = appointments.filter(apt =>
+        apt.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        apt.doctorName?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "scheduled": return "bg-blue-500/10 text-blue-600 border-blue-500/20"
-            case "completed": return "bg-green-500/10 text-green-600 border-green-500/20"
-            case "cancelled": return "bg-red-500/10 text-red-600 border-red-500/20"
-            default: return "bg-gray-500/10 text-gray-600 border-gray-500/20"
+            case 'scheduled': return 'bg-blue-100 text-blue-800'
+            case 'confirmed': return 'bg-green-100 text-green-800'
+            case 'completed': return 'bg-gray-100 text-gray-800'
+            case 'cancelled': return 'bg-red-100 text-red-800'
+            case 'no-show': return 'bg-orange-100 text-orange-800'
+            default: return 'bg-gray-100 text-gray-800'
         }
     }
 
@@ -73,16 +76,13 @@ export default function AppointmentsPage() {
                 <div className="flex flex-col md:flex-row items-center justify-between mb-8">
                     <div>
                         <h1 className="text-3xl font-bold text-foreground mb-2">Appointments</h1>
-                        <p className="text-muted-foreground">Manage scheduled appointments</p>
+                        <p className="text-muted-foreground">Manage scheduled consultations</p>
                     </div>
-                    <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        New Appointment
-                    </Button>
+                    <AddAppointmentDialog onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
                 </div>
 
                 <Card className="p-6 mb-6">
-                    <div className="flex gap-4">
+                    <div className="flex flex-col md:flex-row gap-4">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -92,10 +92,12 @@ export default function AppointmentsPage() {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <Button variant="outline">
-                            <Filter className="h-4 w-4 mr-2" />
-                            Filter
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button variant={statusFilter === "all" ? "default" : "outline"} onClick={() => setStatusFilter("all")}>All</Button>
+                            <Button variant={statusFilter === "scheduled" ? "default" : "outline"} onClick={() => setStatusFilter("scheduled")}>Scheduled</Button>
+                            <Button variant={statusFilter === "confirmed" ? "default" : "outline"} onClick={() => setStatusFilter("confirmed")}>Confirmed</Button>
+                            <Button variant={statusFilter === "completed" ? "default" : "outline"} onClick={() => setStatusFilter("completed")}>Completed</Button>
+                        </div>
                     </div>
                 </Card>
 

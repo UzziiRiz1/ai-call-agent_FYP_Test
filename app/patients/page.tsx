@@ -9,12 +9,15 @@ import { Search, Filter, Plus, Phone, Mail, User, Eye, MapPin } from "lucide-rea
 import Link from "next/link"
 import type { IPatient } from "@/models/Patient"
 
+import { AddPatientDialog } from "@/components/add-patient-dialog"
+
 export default function PatientsPage() {
     const [user, setUser] = useState<any>(null)
     const [patients, setPatients] = useState<IPatient[]>([])
     const [filteredPatients, setFilteredPatients] = useState<IPatient[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
+    const [refreshTrigger, setRefreshTrigger] = useState(0)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -44,7 +47,7 @@ export default function PatientsPage() {
         }
 
         fetchData()
-    }, [])
+    }, [refreshTrigger])
 
     useEffect(() => {
         const filtered = patients.filter(patient =>
@@ -65,10 +68,7 @@ export default function PatientsPage() {
                         <h1 className="text-3xl font-bold text-foreground mb-2">Patients</h1>
                         <p className="text-muted-foreground">Manage patient records and history</p>
                     </div>
-                    <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Patient
-                    </Button>
+                    <AddPatientDialog onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
                 </div>
 
                 <Card className="p-6 mb-6">

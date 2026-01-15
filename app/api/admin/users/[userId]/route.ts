@@ -3,7 +3,8 @@ import { getDb } from "@/lib/mongodb"
 import { getSession, hashPassword } from "@/lib/auth"
 import { ObjectId } from "mongodb"
 
-export async function PATCH(request: NextRequest, { params }: { params: { userId: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ userId: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSession()
 
@@ -43,7 +44,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { userId
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { userId: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ userId: string }> }) {
+  const params = await props.params;
   try {
     const session = await getSession()
 

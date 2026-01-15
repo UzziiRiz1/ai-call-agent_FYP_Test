@@ -10,12 +10,15 @@ import { Search, Filter, Plus, Phone, Mail, Stethoscope, Eye, Calendar } from "l
 import Link from "next/link"
 import type { IDoctor } from "@/models/Doctor"
 
+import { AddDoctorDialog } from "@/components/add-doctor-dialog"
+
 export default function DoctorsPage() {
     const [user, setUser] = useState<any>(null)
     const [doctors, setDoctors] = useState<IDoctor[]>([])
     const [filteredDoctors, setFilteredDoctors] = useState<IDoctor[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
+    const [refreshTrigger, setRefreshTrigger] = useState(0)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -45,7 +48,7 @@ export default function DoctorsPage() {
         }
 
         fetchData()
-    }, [])
+    }, [refreshTrigger])
 
     useEffect(() => {
         const filtered = doctors.filter(doc =>
@@ -66,10 +69,7 @@ export default function DoctorsPage() {
                         <h1 className="text-3xl font-bold text-foreground mb-2">Doctors</h1>
                         <p className="text-muted-foreground">Manage medical staff and profiles</p>
                     </div>
-                    <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Doctor
-                    </Button>
+                    <AddDoctorDialog onSuccess={() => setRefreshTrigger(prev => prev + 1)} />
                 </div>
 
                 <Card className="p-6 mb-6">

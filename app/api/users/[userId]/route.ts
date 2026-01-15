@@ -2,74 +2,100 @@ import { NextResponse } from "next/server"
 import { getDb } from "@/lib/mongodb"
 import { UserModel } from "@/models/User"
 import bcrypt from "bcryptjs"
+import { ObjectId } from "mongodb" // Added ObjectId import
+import { getSession } from "@/lib/auth" // Added getSession import
 
-export async function GET(request: Request, { params }: { params: { userId: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ userId: string }> }) {
+  const params = await props.params;
   try {
-    const db = await getDb()
-    const userModel = new UserModel(db)
-
-    const user = await userModel.findById(params.userId)
-
-    if (!user) {
-      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 })
+    const session = await getSession()
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Remove password from response
-    const { password, ...sanitizedUser } = user
+    const { userId } = params
+    const db = await getDb()
+    const user = await db.collection("users").findOne(
+      { _id: new ObjectId(userId) },
+      { projection: { password: 0 } }
+    )
 
-    return NextResponse.json({ success: true, user: sanitizedUser })
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      user: {
+        ...user,
+        _id: user._id.toString(),
+      },
+    })
   } catch (error) {
-    console.error("[v0] Error fetching user:", error)
-    return NextResponse.json({ success: false, error: "Failed to fetch user" }, { status: 500 })
+    console.error("[v0] Error fetching user:", error) // Kept original error logging style
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: { userId: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ userId: string }> }) {
+  const params = await props.params;
   try {
-    const body = await request.json()
+    const session = await getSession()
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { userId } = params
+    const updates = await request.json()
     const db = await getDb()
-    const userModel = new UserModel(db)
 
-    // If password is being updated, hash it
-    if (body.password) {
-      body.password = await bcrypt.hash(body.password, 10)
+    // If password is being updated, hash it (re-added this logic from original)
+    if (updates.password) {
+      updates.password = await bcrypt.hash(updates.password, 10)
     }
 
-    const updated = await userModel.update(params.userId, body)
+    const result = await db
+      .collection("users")
+      .findOneAndUpdate(
+        { _id: new ObjectId(userId) },
+        { $set: { ...updates, updatedAt: new Date() } },
+        { returnDocument: "after", projection: { password: 0 } },
+      )
 
-    if (!updated) {
-      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 })
+    if (!result) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const user = await userModel.findById(params.userId)
-    if (!user) {
-      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 })
-    }
-
-    // Remove password from response
-    const { password, ...sanitizedUser } = user
-
-    return NextResponse.json({ success: true, user: sanitizedUser })
+    return NextResponse.json({
+      user: {
+        ...(result as any), // Type assertion to bypass strict null check on result properties, handled by !result check above
+        _id: result._id.toString(),
+      },
+    })
   } catch (error) {
-    console.error("[v0] Error updating user:", error)
-    return NextResponse.json({ success: false, error: "Failed to update user" }, { status: 500 })
+    console.error("[v0] Error updating user:", error) // Kept original error logging style
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { userId: string } }) {
+export async function DELETE(request: Request, props: { params: Promise<{ userId: string }> }) {
+  const params = await props.params;
   try {
-    const db = await getDb()
-    const userModel = new UserModel(db)
-
-    const deleted = await userModel.delete(params.userId)
-
-    if (!deleted) {
-      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 })
+    const session = await getSession()
+    if (!session || session.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    return NextResponse.json({ success: true, message: "User deleted successfully" })
+    const { userId } = params
+    const db = await getDb()
+    const result = await db.collection("users").deleteOne({ _id: new ObjectId(userId) })
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[v0] Error deleting user:", error)
-    return NextResponse.json({ success: false, error: "Failed to delete user" }, { status: 500 })
+    console.error("[v0] Error deleting user:", error) // Kept original error logging style
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

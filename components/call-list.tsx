@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Phone, Clock, AlertTriangle } from "lucide-react"
+import Link from "next/link"
 import type { Call } from "@/lib/types"
 import { formatDistanceToNow } from "date-fns"
 
@@ -70,17 +71,19 @@ export function CallList({ calls, title }: CallListProps) {
           </div>
         ) : (
           calls.map((call, index) => (
-            <div
-              // [FIX] Uses callId OR _id OR index as fallback to ensure unique key
+            <Link
+              href={`/calls/${call.callId}`}
               key={call.callId || (call as any)._id?.toString() || index}
-              className="p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors"
+              className="block p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors"
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <p className="font-semibold text-foreground">{call.patientName || "Unknown Caller"}</p>
                     {call.emergencyDetected && (
-                      <AlertTriangle className="h-4 w-4 text-destructive" title="Emergency Detected" />
+                      <div title="Emergency Detected">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                      </div>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">{call.phoneNumber}</p>
@@ -107,7 +110,7 @@ export function CallList({ calls, title }: CallListProps) {
               </div>
 
               {call.transcript && <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{call.transcript}</p>}
-            </div>
+            </Link>
           ))
         )}
       </div>

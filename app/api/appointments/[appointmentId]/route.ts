@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import { getDb } from "@/lib/mongodb"
 import { AppointmentModel } from "@/models/Appointment"
 
-export async function GET(request: Request, { params }: { params: { appointmentId: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ appointmentId: string }> }) {
+  const params = await props.params;
   try {
     const db = await getDb()
     const appointmentModel = new AppointmentModel(db)
@@ -20,7 +21,8 @@ export async function GET(request: Request, { params }: { params: { appointmentI
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: { appointmentId: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ appointmentId: string }> }) {
+  const params = await props.params;
   try {
     const body = await request.json()
     const db = await getDb()
@@ -40,7 +42,8 @@ export async function PATCH(request: Request, { params }: { params: { appointmen
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { appointmentId: string } }) {
+export async function DELETE(request: Request, props: { params: Promise<{ appointmentId: string }> }) {
+  const params = await props.params;
   try {
     const db = await getDb()
     const appointmentModel = new AppointmentModel(db)

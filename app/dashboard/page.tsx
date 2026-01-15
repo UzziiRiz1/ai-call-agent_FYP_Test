@@ -74,7 +74,7 @@ export default function DashboardPage() {
 
     const pollInterval = setInterval(() => {
       fetchData(false)
-    }, 3000) // Poll every 3 seconds for faster redirect
+    }, 1000) // Poll every 1 second for faster redirect
 
     return () => {
       clearInterval(pollInterval)

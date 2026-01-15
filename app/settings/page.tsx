@@ -31,22 +31,44 @@ export default function SettingsPage() {
     })
 
     useEffect(() => {
-        // Mock fetching settings
+        // Fetch settings
+        setLoading(true)
+        fetch("/api/settings")
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.config) {
+                    setConfig(data.config)
+                }
+            })
+            .catch(err => console.error(err))
+            .finally(() => setLoading(false))
+
         fetch("/api/auth/me")
             .then(res => res.json())
             .then(data => {
                 if (data.user) setUser(data.user)
-                setLoading(false)
             })
-            .catch(err => console.error(err))
     }, [])
 
     const handleSave = async () => {
         setSaving(true)
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        setSaving(false)
-        alert("Settings saved successfully!")
+        try {
+            const res = await fetch("/api/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(config)
+            })
+            if (res.ok) {
+                alert("Settings saved successfully!")
+            } else {
+                alert("Failed to save settings")
+            }
+        } catch (error) {
+            console.error(error)
+            alert("Error saving settings")
+        } finally {
+            setSaving(false)
+        }
     }
 
     return (

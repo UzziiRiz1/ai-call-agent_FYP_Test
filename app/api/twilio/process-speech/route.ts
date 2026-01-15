@@ -129,13 +129,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    twiml.say(
-      {
-        voice: "Polly.Joanna-Neural",
-      },
-      aiResponse,
-    )
-
+    // Main AI Response with Barge-In support
+    // We nest <Say> inside <Gather> so the user can interrupt the AI while it's speaking
     const gather = twiml.gather({
       input: ["speech", "dtmf"], // Accept both speech and keypad input
       action: `${process.env.NEXT_PUBLIC_APP_URL || "https://v0-ai-call-agent-one.vercel.app"}/api/twilio/process-speech`,
@@ -146,16 +141,34 @@ export async function POST(request: NextRequest) {
       enhanced: true,
       language: "en-US",
       numDigits: 1, // If they press a key
+      bargeIn: true, // Explicitly enable barge-in (though it's default for speech)
     })
 
     gather.say(
       {
         voice: "Polly.Joanna-Neural",
       },
+      aiResponse,
+    )
+
+    // Fallback if no input received during the Gather/Say
+    // We ask again to prompt the user
+    const fallbackGather = twiml.gather({
+      input: ["speech", "dtmf"],
+      action: `${process.env.NEXT_PUBLIC_APP_URL || "https://v0-ai-call-agent-one.vercel.app"}/api/twilio/process-speech`,
+      method: "POST",
+      timeout: 5,
+      bargeIn: true
+    })
+
+    fallbackGather.say(
+      {
+        voice: "Polly.Joanna-Neural",
+      },
       "Is there anything else I can help you with? You can speak, or press 1 to end the call.",
     )
 
-    // If no response, end gracefully
+    // If still no response, end gracefully
     twiml.say(
       {
         voice: "Polly.Joanna-Neural",

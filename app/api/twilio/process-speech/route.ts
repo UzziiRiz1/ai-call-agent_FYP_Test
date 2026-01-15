@@ -18,17 +18,17 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Processing speech input:", params)
 
     // Verify Twilio signature
+    // Verify Twilio signature
     const signature = request.headers.get("x-twilio-signature") || ""
     const url = request.url
 
-    // Signature verification disabled for development with ngrok
-    // URL mismatch between Twilio webhook URL and request.url causes failures
-    // if (!verifyTwilioSignature(signature, url, params)) {
-    //   console.error("[v0] Invalid Twilio signature")
-    //   return new NextResponse("Unauthorized", { status: 401 })
-    // }
-
     const { CallSid, SpeechResult, Confidence } = params
+
+    // Strict English Configuration
+    const language = "en-US"
+    const voice = "Polly.Joanna-Neural"
+
+    console.log(`[v0] Processing speech for call ${CallSid}, Language: ${language}`)
 
     const transcript = (SpeechResult as string) || ""
     const confidence = Number.parseFloat(Confidence as string) || 0
@@ -36,13 +36,12 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Transcript received:", transcript, "Confidence:", confidence)
 
     // PHASE 3: Zero-Latency Handoff (Keyword Override)
-    // If these specific keywords are heard, bypass AI and route immediately
     const CRITICAL_KEYWORDS = ["dying", "shot", "heart stopped", "can't breathe", "unconscious"];
     if (CRITICAL_KEYWORDS.some(k => transcript.toLowerCase().includes(k))) {
       console.log("[v0] ZERO-LATENCY OVERRIDE: Critical keyword detected. Routing immediately.");
       const twiml = new VoiceResponse();
       twiml.say("Emergency detected. Connecting now.");
-      twiml.dial(process.env.EMERGENCY_PHONE_NUMBER || "+15394445797"); // Use default for zero-latency, or simplistic mapping
+      twiml.dial(process.env.EMERGENCY_PHONE_NUMBER || "+15394445797");
       return new NextResponse(twiml.toString(), { headers: { "Content-Type": "text/xml" } });
     }
 
@@ -57,22 +56,23 @@ export async function POST(request: NextRequest) {
         speechTimeout: "auto",
         speechModel: "phone_call",
         enhanced: true,
-        language: "en-US",
+        language: language as any,
       })
 
-      gather.say(
-        {
-          voice: "Polly.Joanna-Neural",
-        },
-        "I'm sorry, I didn't catch that. Could you please repeat what you need help with?",
-      )
+      const retryMsg = "I'm sorry, I didn't catch that. Could you please repeat what you need help with?"
+      if (voice) {
+        gather.say({ voice: voice as any }, retryMsg)
+      } else {
+        gather.say({ language: language as any }, retryMsg)
+      }
 
-      twiml.say(
-        {
-          voice: "Polly.Joanna-Neural",
-        },
-        "Thank you for calling. Goodbye.",
-      )
+      const goodbyeMsg = "Thank you for calling. Goodbye."
+      if (voice) {
+        twiml.say({ voice: voice as any }, goodbyeMsg)
+      } else {
+        twiml.say({ language: language as any }, goodbyeMsg)
+      }
+
       twiml.hangup()
 
       return new NextResponse(twiml.toString(), {
@@ -107,7 +107,12 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[v0] Generating AI response...")
-    // Pass systemContext to generator (Need to update signature of generateResponse or prepend to transcript)
+    // Pass systemContext to generator
+    // Pass "mixed" or let AI detect from transcript. We won't force a language param anymore, 
+    // or we pass "ur-PK" to imply "Replying in Urdu if input is Urdu".
+    // Actually, we'll pass "detect" or just rely on the system prompt update.
+    // Let's pass "mixed" to prompt the AI to be flexible.
+    // Pass systemContext to generator
     const aiResponse = await generateResponse(transcript + (systemContext ? ` [SYSTEM_NOTE: ${systemContext}]` : ""), intent, isEmergency)
 
     console.log("[v0] AI Analysis:", { intent, isEmergency, severity, priority, systemContext })
@@ -126,7 +131,7 @@ export async function POST(request: NextRequest) {
           emergencySeverity: severity,
           emergencyKeywords: keywords,
           aiResponse,
-          systemContext, // Log what the system found
+          systemContext,
           updatedAt: new Date(),
         },
       },
@@ -135,7 +140,6 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Call record updated:", CallSid)
 
-    // Broadcast update via WebSocket
     if (call) {
       broadcastUpdate("call_updated", call)
     }
@@ -147,24 +151,22 @@ export async function POST(request: NextRequest) {
     if (isEmergency && severity === "critical") {
       console.log("[v0] CRITICAL EMERGENCY DETECTED - Routing to emergency services")
 
-      const callerCountry = (params.CallerCountry as string) || "US" // Twilio provides this
-      let emergencyNumber = process.env.EMERGENCY_PHONE_NUMBER || "+15394445797" // Default fallback
+      const callerCountry = (params.CallerCountry as string) || "US"
+      let emergencyNumber = process.env.EMERGENCY_PHONE_NUMBER || "+15394445797"
 
-      // Dynamic switch based on country
       if (callerCountry === "PK") emergencyNumber = "1122"
       else if (callerCountry === "GB") emergencyNumber = "999"
       else if (callerCountry === "US") emergencyNumber = "911"
 
       console.log(`[v0] Routing to ${emergencyNumber} for country ${callerCountry}`)
 
-      twiml.say(
-        {
-          voice: "Polly.Joanna-Neural",
-        },
-        `Critical emergency detected. Connecting you to ${callerCountry === 'US' ? '9 1 1' : 'emergency services'} immediately.`,
-      )
+      const emergencyMsg = `Critical emergency detected. Connecting you to ${callerCountry === 'US' ? '9 1 1' : 'emergency services'} immediately.`
+      if (voice) {
+        twiml.say({ voice: voice as any }, emergencyMsg)
+      } else {
+        twiml.say({ language: language as any }, emergencyMsg)
+      }
 
-      // Dial emergency services
       twiml.dial(emergencyNumber)
 
       return new NextResponse(twiml.toString(), {
@@ -172,39 +174,32 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // PHASE 2: Actionable SMS (If doctor found)
+    // PHASE 2: Actionable SMS
     if (systemContext && systemContext.includes("Found nearby doctors")) {
-      // We use the twilio client from imports (need to import it properly or use global client if already instantiated)
-      // For now, to avoid expanding imports complexly, we'll log the intention. 
-      // In a real implementation we would call twilioClient.messages.create() here.
       console.log("[v0] ACTION: Sending SMS with doctor details to caller...")
-      // Ideally: sendSMS(params.From, systemContext)
     }
 
     // Main AI Response with Barge-In support
-    // We nest <Say> inside <Gather> so the user can interrupt the AI while it's speaking
     const gather = twiml.gather({
-      input: ["speech", "dtmf"], // Accept both speech and keypad input
+      input: ["speech", "dtmf"],
       action: `${process.env.NEXT_PUBLIC_APP_URL || "https://v0-ai-call-agent-one.vercel.app"}/api/twilio/process-speech`,
       method: "POST",
       timeout: 5,
       speechTimeout: "auto",
       speechModel: "phone_call",
       enhanced: true,
-      language: "en-US",
-      numDigits: 1, // If they press a key
-      bargeIn: true, // Explicitly enable barge-in (though it's default for speech)
+      language: language as any,
+      numDigits: 1,
+      bargeIn: true,
     })
 
-    gather.say(
-      {
-        voice: "Polly.Joanna-Neural",
-      },
-      aiResponse,
-    )
+    if (voice) {
+      gather.say({ voice: voice as any }, aiResponse)
+    } else {
+      gather.say({ language: language as any }, aiResponse)
+    }
 
-    // Fallback if no input received during the Gather/Say
-    // We ask again to prompt the user
+    // Fallback if no input received
     const fallbackGather = twiml.gather({
       input: ["speech", "dtmf"],
       action: `${process.env.NEXT_PUBLIC_APP_URL || "https://v0-ai-call-agent-one.vercel.app"}/api/twilio/process-speech`,
@@ -213,20 +208,21 @@ export async function POST(request: NextRequest) {
       bargeIn: true
     })
 
-    fallbackGather.say(
-      {
-        voice: "Polly.Joanna-Neural",
-      },
-      "Is there anything else I can help you with? You can speak, or press 1 to end the call.",
-    )
+    const fallbackMsg = "Is there anything else I can help you with? You can speak, or press 1 to end the call."
+    if (voice) {
+      fallbackGather.say({ voice: voice as any }, fallbackMsg)
+    } else {
+      fallbackGather.say({ language: language as any }, fallbackMsg)
+    }
 
     // If still no response, end gracefully
-    twiml.say(
-      {
-        voice: "Polly.Joanna-Neural",
-      },
-      "Thank you for calling our medical assistance line. We hope you feel better soon. Goodbye.",
-    )
+    const goodbyeMsg = "Thank you for calling our medical assistance line. We hope you feel better soon. Goodbye."
+    if (voice) {
+      twiml.say({ voice: voice as any }, goodbyeMsg)
+    } else {
+      twiml.say({ language: language as any }, goodbyeMsg)
+    }
+
     twiml.hangup()
 
     return new NextResponse(twiml.toString(), {

@@ -17,36 +17,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [setupLoading, setSetupLoading] = useState(false)
-  const [setupSuccess, setSetupSuccess] = useState(false)
-
-  const handleSetup = async () => {
-    setSetupLoading(true)
-    setError("")
-    setSetupSuccess(false)
-
-    try {
-      const response = await fetch("/api/setup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        setError(data.error || "Setup failed")
-        return
-      }
-
-      setSetupSuccess(true)
-      setError("")
-    } catch (err) {
-      console.error("[v0] Setup error:", err)
-      setError("Setup failed. Please check your MongoDB connection.")
-    } finally {
-      setSetupLoading(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -117,31 +87,14 @@ export default function LoginPage() {
 
             {error && <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>}
 
-            {setupSuccess && (
-              <div className="p-3 rounded-lg bg-green-50 text-green-700 text-sm">
-                Database initialized successfully! You can now log in.
-              </div>
-            )}
-
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full bg-transparent"
-              onClick={handleSetup}
-              disabled={setupLoading}
-            >
-              {setupLoading ? "Setting up..." : "Setup Database"}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>Demo credentials:</p>
             <p className="font-mono text-xs mt-1">admin@example.com / admin123</p>
-            <p className="text-xs mt-2">First time? Click "Setup Database" above</p>
           </div>
         </Card>
 

@@ -1,40 +1,65 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { jwtVerify } from "jose"
 
+// Renaming 'middleware' to 'proxy' to satisfy the environment error
 export async function proxy(request: NextRequest) {
-  // Skip all auth checks and allow access to all routes
-  return NextResponse.next()
-
-  /* Original auth code - commented out for development
+  const { pathname } = request.nextUrl
   const token = request.cookies.get("token")?.value
 
-  // Public routes
-  const isPublicRoute = request.nextUrl.pathname === "/" || request.nextUrl.pathname === "/login"
-
-  if (isPublicRoute) {
-    return NextResponse.next()
+  // 1. Root Path "/" Handling
+  if (pathname === "/") {
+    if (token) {
+      // If logged in, go to dashboard
+      return NextResponse.redirect(new URL("/dashboard", request.url))
+    } else {
+      // If NOT logged in, go to login
+      return NextResponse.redirect(new URL("/login", request.url))
+    }
   }
 
-  // Protected routes require authentication
+  // 2. Auth Check for protected routes
+  // (Ideally the matcher handles this, but we double check)
   if (!token) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  const payload = await verifyToken(token)
+  try {
+    const secret = process.env.JWT_SECRET
+    if (!secret) {
+      console.error("JWT_SECRET is not defined in proxy/middleware")
+      return NextResponse.redirect(new URL("/login", request.url))
+    }
 
-  if (!payload) {
+    const encodedSecret = new TextEncoder().encode(secret)
+    await jwtVerify(token, encodedSecret)
+
+    return NextResponse.next()
+  } catch (err) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
-
-  // Admin-only routes
-  if (request.nextUrl.pathname.startsWith("/admin") && payload.role !== "admin") {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
-  }
-
-  return NextResponse.next()
-  */
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*", "/calls/:path*"],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api/auth (auth routes)
+     * - api/setup (setup route)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - login (login page)
+     * - public (public files if any)
+     */
+    "/",
+    "/dashboard/:path*",
+    "/calls/:path*",
+    "/settings/:path*",
+    "/patients/:path*",
+    "/doctors/:path*",
+    "/appointments/:path*",
+    "/admin/:path*",
+    "/analytics/:path*",
+  ],
 }

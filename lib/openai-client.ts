@@ -124,6 +124,7 @@ Guidelines:
 - For appointments: Offer to schedule or check availability
 - For prescriptions: Acknowledge request, mention pharmacy coordination
 - For inquiries: Provide helpful guidance or offer to connect with medical staff
+- Language: ALWAYS respond in clear, concise English.
 
 Generate the AI agent's response:`
 
@@ -133,7 +134,7 @@ Generate the AI agent's response:`
       messages: [
         {
           role: "system",
-          content: "You are a compassionate medical call center AI assistant. Provide helpful, professional responses.",
+          content: "You are a compassionate medical call center AI assistant. Provide helpful, professional responses in English.",
         },
         { role: "user", content: prompt },
       ],

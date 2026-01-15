@@ -162,6 +162,9 @@ export default function DashboardPage() {
             </div>
             <div className="flex gap-3">
               <OutboundCallDialog />
+              <Button onClick={() => fetch("/api/calls/sync", { method: "POST" }).then(() => fetchData(false))} variant="outline" size="sm">
+                Sync Status
+              </Button>
               {process.env.NODE_ENV === "development" && (
                 <Button onClick={handleSimulateCall} variant="ghost" size="sm">
                   Simulate (Dev)

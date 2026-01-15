@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     // Create TwiML response
     const twiml = new VoiceResponse()
 
-    // Gather speech input with AI-powered greeting
+    // Gather speech input with standard English greeting
     const gather = twiml.gather({
       input: ["speech"],
       action: `${process.env.NEXT_PUBLIC_APP_URL || "https://v0-ai-call-agent-one.vercel.app"}/api/twilio/process-speech`,
@@ -64,13 +64,11 @@ export async function POST(request: NextRequest) {
     })
 
     gather.say(
-      {
-        voice: "Polly.Joanna-Neural",
-      },
-      "Hello, thank you for calling our medical assistance line. How can I help you today?",
+      { voice: "Polly.Joanna-Neural" },
+      "Hello, I am your AI Medical Assistant. How can I help you today?",
     )
 
-    // If no input, redirect
+    // If no input, redirect to itself to loop
     twiml.redirect(`${process.env.NEXT_PUBLIC_APP_URL || "https://v0-ai-call-agent-one.vercel.app"}/api/twilio/voice`)
 
     return new NextResponse(twiml.toString(), {

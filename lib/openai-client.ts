@@ -28,10 +28,12 @@ Transcript: "${transcript}"
 
 Classify into one of these categories:
 - appointment: Caller wants to schedule, reschedule, or cancel an appointment
-- prescription: Caller needs prescription refill, medication questions, or pharmacy issues
-- general_inquiry: General health questions, test results, or medical advice
-- emergency: Urgent medical situation requiring immediate attention
-- unknown: Intent is unclear or doesn't fit other categories
+- prescription: Caller needs prescription refill, medication questions, or pharmacy
+- general_inquiry: General questions about the clinic or services.
+- emergency: Medical emergencies or urgent situations.
+- find_doctor: Request to find a doctor, specialist, or hospital nearby.
+- outbound_notification: An automated notification from the system.
+- unknown: If the intent is not clear. or doesn't fit other categories
 
 Respond in JSON format with: {"intent": "category", "confidence": 0-100, "reasoning": "brief explanation"}`
 

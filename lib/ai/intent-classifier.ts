@@ -7,6 +7,7 @@ const INTENT_KEYWORDS: Record<CallIntent, string[]> = {
   prescription: ["prescription", "medication", "medicine", "refill", "pharmacy"],
   general_inquiry: ["question", "help", "information", "inquiry", "ask", "know"],
   emergency: ["emergency", "urgent", "ambulance", "911", "help me", "dying", "pain", "chest", "bleeding"],
+  find_doctor: ["find doctor", "nearest doctor", "nearby doctor", "hospital", "clinic", "medical center", "where is a doctor"],
   outbound_notification: ["notification", "alert", "reminder"],
   unknown: [],
 }
@@ -24,7 +25,7 @@ export async function classifyIntent(transcript: string): Promise<CallIntent> {
 
   // Fallback to basic keyword matching
   const lowerTranscript = transcript.toLowerCase()
-  
+
   // Emergency check first (priority)
   if (INTENT_KEYWORDS.emergency.some(k => lowerTranscript.includes(k))) {
     return "emergency"

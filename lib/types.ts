@@ -5,6 +5,7 @@ export type CallIntent =
   | "general_inquiry"
   | "emergency"
   | "outbound_notification"
+  | "find_doctor" // New intent for Phase 1
   | "unknown"
 export type Priority = "low" | "medium" | "high" | "critical"
 

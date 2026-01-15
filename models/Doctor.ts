@@ -1,4 +1,4 @@
-import type { Db, Collection, ObjectId } from "mongodb"
+import { type Db, type Collection, ObjectId } from "mongodb"
 
 export interface IDoctor {
   _id?: ObjectId
@@ -8,6 +8,11 @@ export interface IDoctor {
   phone: string
   specialization: string
   licenseNumber: string
+  address: string
+  location: {
+    type: "Point"
+    coordinates: number[] // [longitude, latitude]
+  }
   availability: {
     monday?: { start: string; end: string }
     tuesday?: { start: string; end: string }
@@ -36,6 +41,7 @@ export class DoctorModel {
     await this.collection.createIndex({ email: 1 }, { unique: true })
     await this.collection.createIndex({ specialization: 1 })
     await this.collection.createIndex({ isActive: 1 })
+    await this.collection.createIndex({ location: "2dsphere" })
   }
 
   async create(doctor: Omit<IDoctor, "_id" | "createdAt" | "updatedAt" | "totalAppointments">): Promise<IDoctor> {
@@ -56,6 +62,32 @@ export class DoctorModel {
 
   async findAll(filter: { specialization?: string; isActive?: boolean } = {}): Promise<IDoctor[]> {
     return this.collection.find(filter).toArray()
+  }
+
+  async findNearby(
+    longitude: number,
+    latitude: number,
+    maxDistanceInMeters = 5000,
+    specialization?: string,
+  ): Promise<IDoctor[]> {
+    const query: any = {
+      location: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [longitude, latitude],
+          },
+          $maxDistance: maxDistanceInMeters,
+        },
+      },
+      isActive: true,
+    }
+
+    if (specialization) {
+      query.specialization = { $regex: new RegExp(specialization, "i") }
+    }
+
+    return this.collection.find(query).toArray()
   }
 
   async update(id: string | ObjectId, updates: Partial<IDoctor>): Promise<boolean> {

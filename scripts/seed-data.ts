@@ -38,9 +38,33 @@ async function hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 10)
 }
 
+// Helper to generate random coordinates near Karachi
+// Center: Karachi (24.8607° N, 67.0011° E)
+function getRandomLocation(centerLat = 24.8607, centerLng = 67.0011, radiusKm = 10) {
+    const y0 = centerLat;
+    const x0 = centerLng;
+    const rd = radiusKm * 1000 / 111300; // about 111300 meters in one degree
+
+    const u = Math.random();
+    const v = Math.random();
+
+    const w = rd * Math.sqrt(u);
+    const t = 2 * Math.PI * v;
+    const x = w * Math.cos(t);
+    const y = w * Math.sin(t);
+
+    const newLat = y + y0;
+    const newLng = x + x0;
+
+    return {
+        type: "Point" as const,
+        coordinates: [newLng, newLat] // MongoDB uses [lng, lat]
+    };
+}
+
 // 2. Main Seed Function with Dynamic Imports
 async function seed() {
-    console.log("🌱 Starting database seeding...")
+    console.log("🌱 Starting database seeding (Karachi Edition)...")
 
     try {
         // Dynamic import ensures lib/mongodb reads the process.env we just set
@@ -54,21 +78,33 @@ async function seed() {
         const appointments = db.collection("appointments")
         const users = db.collection("users")
 
+        console.log("🧹 Clearing existing data...")
+        await doctors.deleteMany({});
+        await patients.deleteMany({});
+        await appointments.deleteMany({});
+        // We carefully delete users to avoid deleting the admin if established, 
+        // but for a full "delete all seeded data" request, we'll clear doctor/patient users.
+        await users.deleteMany({ role: { $in: ["doctor", "patient"] } });
+
+        // Ensure geospatial index
+        await doctors.createIndex({ location: "2dsphere" });
+        console.log("📍 Created 2dsphere index on doctors.location");
+
         // --- Data Definitions ---
 
         // 1. Create Doctors & Linked Users
         console.log("Creating Doctors and Users...")
         const doctorProfiles = [
-            { name: "Dr. Sarah Smith", email: "sarah.smith@clinic.com", spec: "Cardiology", phone: "+15550101", license: "MD-CARD-101" },
-            { name: "Dr. James Wilson", email: "james.wilson@clinic.com", spec: "Pediatrics", phone: "+15550102", license: "MD-PED-202" },
-            { name: "Dr. Emily Chen", email: "emily.chen@clinic.com", spec: "Dermatology", phone: "+15550103", license: "MD-DERM-303" },
-            { name: "Dr. Michael Change", email: "michael.chang@clinic.com", spec: "Orthopedics", phone: "+15550104", license: "MD-ORTH-404" },
-            { name: "Dr. Lisa Ray", email: "lisa.ray@clinic.com", spec: "Neurology", phone: "+15550105", license: "MD-NEUR-505" },
-            { name: "Dr. Robert Ford", email: "robert.ford@clinic.com", spec: "General Practice", phone: "+15550106", license: "MD-GP-606" },
-            { name: "Dr. Amanda Lee", email: "amanda.lee@clinic.com", spec: "Psychiatry", phone: "+15550107", license: "MD-PSY-707" },
-            { name: "Dr. David Kim", email: "david.kim@clinic.com", spec: "Ophthalmology", phone: "+15550108", license: "MD-OPH-808" },
-            { name: "Dr. Jennifer Wu", email: "jennifer.wu@clinic.com", spec: "General Practice", phone: "+15550109", license: "MD-GP-909" },
-            { name: "Dr. Thomas Brown", email: "thomas.brown@clinic.com", spec: "Cardiology", phone: "+15550110", license: "MD-CARD-1010" }
+            { name: "Dr. Ahmed Khan", email: "ahmed.khan@clinic.pk", spec: "Cardiology", phone: "+923001234567", license: "PMDC-12345", address: "Aga Khan Hospital, Stadium Road, Karachi" },
+            { name: "Dr. Fatima Ali", email: "fatima.ali@clinic.pk", spec: "Pediatrics", phone: "+923002345678", license: "PMDC-23456", address: "South City Hospital, Clifton, Karachi" },
+            { name: "Dr. Bilal Ahmed", email: "bilal.ahmed@clinic.pk", spec: "Dermatology", phone: "+923003456789", license: "PMDC-34567", address: "Liaquat National Hospital, Karachi" },
+            { name: "Dr. Zainab Raza", email: "zainab.raza@clinic.pk", spec: "Orthopedics", phone: "+923004567890", license: "PMDC-45678", address: "OMI Hospital, Saddar, Karachi" },
+            { name: "Dr. Omar Farooq", email: "omar.farooq@clinic.pk", spec: "Neurology", phone: "+923005678901", license: "PMDC-56789", address: "Dow University Hospital, Ojha, Karachi" },
+            { name: "Dr. Ayesha Siddiqui", email: "ayesha.siddiqui@clinic.pk", spec: "General Practice", phone: "+923006789012", license: "PMDC-67890", address: "Patel Hospital, Gulshan-e-Iqbal, Karachi" },
+            { name: "Dr. Usman Gorman", email: "usman.gorman@clinic.pk", spec: "Psychiatry", phone: "+923007890123", license: "PMDC-78901", address: "Karachi Psychiatric Hospital, Nazimabad, Karachi" },
+            { name: "Dr. Sana Mir", email: "sana.mir@clinic.pk", spec: "Ophthalmology", phone: "+923008901234", license: "PMDC-89012", address: "Hashmani's Hospital, Saddar, Karachi" },
+            { name: "Dr. Hassan Raza", email: "hassan.raza@clinic.pk", spec: "General Practice", phone: "+923009012345", license: "PMDC-90123", address: "Indus Hospital, Korangi, Karachi" },
+            { name: "Dr. Nida Karim", email: "nida.karim@clinic.pk", spec: "Cardiology", phone: "+923000123456", license: "PMDC-01234", address: "NICVD, Karachi" }
         ];
 
         const insertedDoctors = [];
@@ -77,25 +113,15 @@ async function seed() {
             // Create or get User ID
             const hashedPassword = await hashPassword("password123");
 
-            // Upsert User
-            await users.updateOne(
-                { email: doc.email },
-                {
-                    $set: {
-                        email: doc.email,
-                        name: doc.name,
-                        role: "doctor",
-                        password: hashedPassword,
-                        createdAt: new Date(),
-                        updatedAt: new Date()
-                    }
-                },
-                { upsert: true }
-            );
-
-            // Fetch the actual user to get the consistent _id
-            const user = await users.findOne({ email: doc.email });
-            if (!user) continue;
+            // Insert User
+            const userResult = await users.insertOne({
+                email: doc.email,
+                name: doc.name,
+                role: "doctor",
+                password: hashedPassword,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
 
             const availability = {
                 monday: { start: "09:00", end: "17:00" },
@@ -105,31 +131,25 @@ async function seed() {
                 friday: { start: "09:00", end: "13:00" },
             };
 
-            await doctors.updateOne(
-                { email: doc.email },
-                {
-                    $set: {
-                        userId: user._id,
-                        name: doc.name,
-                        email: doc.email,
-                        phone: doc.phone,
-                        specialization: doc.spec,
-                        licenseNumber: doc.license,
-                        availability,
-                        isActive: true,
-                        totalAppointments: Math.floor(Math.random() * 100),
-                        updatedAt: new Date()
-                    },
-                    $setOnInsert: {
-                        _id: new ObjectId(),
-                        createdAt: new Date()
-                    }
-                },
-                { upsert: true }
-            );
+            const location = getRandomLocation(); // Random spot in Karachi
 
-            const insertedDoc = await doctors.findOne({ email: doc.email });
-            if (insertedDoc) insertedDoctors.push(insertedDoc);
+            const docResult = await doctors.insertOne({
+                userId: userResult.insertedId,
+                name: doc.name,
+                email: doc.email,
+                phone: doc.phone,
+                specialization: doc.spec,
+                licenseNumber: doc.license,
+                address: doc.address,
+                location: location,
+                availability,
+                isActive: true,
+                totalAppointments: Math.floor(Math.random() * 100),
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+
+            insertedDoctors.push({ ...doc, _id: docResult.insertedId });
         }
         console.log(`✅ Seeded ${insertedDoctors.length} doctors`);
 
@@ -137,46 +157,36 @@ async function seed() {
         // 2. Create Patients
         console.log("Creating Patients...")
         const patientProfiles = [
-            { name: "John Doe", phone: "+15551234567", email: "john.doe@example.com", dob: "1985-06-15", history: ["Hypertension"], allergy: ["Penicillin"] },
-            { name: "Jane Roe", phone: "+15559876543", email: "jane.roe@example.com", dob: "1992-03-22", history: ["Migraines"], allergy: [] },
-            { name: "Michael Brown", phone: "+15554567890", email: "michael.b@example.com", dob: "1978-11-05", history: [], allergy: ["Peanuts"] },
-            { name: "Emily White", phone: "+15551112233", email: "emily.w@example.com", dob: "1990-01-15", history: ["Asthma"], allergy: ["Dust"] },
-            { name: "Chris Green", phone: "+15552223344", email: "chris.g@example.com", dob: "1982-08-30", history: ["Diabetes Type 2"], allergy: [] },
-            { name: "Patricia Black", phone: "+15553334455", email: "patricia.b@example.com", dob: "1970-05-12", history: ["Arthritis", "High Cholesterol"], allergy: ["Latex"] },
-            { name: "Robert Blue", phone: "+15554445566", email: "robert.blue@example.com", dob: "1965-09-20", history: ["Cardiac Arrhythmia"], allergy: [] },
-            { name: "Linda Yellow", phone: "+15555556677", email: "linda.y@example.com", dob: "1995-12-05", history: [], allergy: ["Sulfa drugs"] },
-            { name: "David Orange", phone: "+15556667788", email: "david.o@example.com", dob: "1988-04-18", history: ["Eczema"], allergy: [] },
-            { name: "Susan Purple", phone: "+15557778899", email: "susan.p@example.com", dob: "1980-02-28", history: ["Anxiety"], allergy: ["Aspirin"] },
-            { name: "Kevin Red", phone: "+15558889900", email: "kevin.r@example.com", dob: "2000-07-07", history: [], allergy: [] },
-            { name: "Laura Silver", phone: "+15559990011", email: "laura.s@example.com", dob: "1993-10-10", history: ["Hypothyroidism"], allergy: [] }
+            { name: "Muhammad Ali", phone: "+923211111111", email: "ali.m@example.com", dob: "1985-06-15", history: ["Hypertension"], allergy: ["Penicillin"] },
+            { name: "Sara Khan", phone: "+923212222222", email: "sara.k@example.com", dob: "1992-03-22", history: ["Migraines"], allergy: [] },
+            { name: "Bilal Sheikh", phone: "+923213333333", email: "bilal.s@example.com", dob: "1978-11-05", history: [], allergy: ["Peanuts"] },
+            { name: "Zoya Ahmed", phone: "+923214444444", email: "zoya.a@example.com", dob: "1990-01-15", history: ["Asthma"], allergy: ["Dust"] },
+            { name: "Hamza Malik", phone: "+923215555555", email: "hamza.m@example.com", dob: "1982-08-30", history: ["Diabetes Type 2"], allergy: [] },
+            { name: "Mariam Yusaf", phone: "+923216666666", email: "mariam.y@example.com", dob: "1970-05-12", history: ["Arthritis", "High Cholesterol"], allergy: ["Latex"] },
+            { name: "Osman Tariq", phone: "+923217777777", email: "osman.t@example.com", dob: "1965-09-20", history: ["Cardiac Arrhythmia"], allergy: [] },
+            { name: "Hira Shah", phone: "+923218888888", email: "hira.s@example.com", dob: "1995-12-05", history: [], allergy: ["Sulfa drugs"] },
+            { name: "Fahad Mustafa", phone: "+923219999999", email: "fahad.m@example.com", dob: "1988-04-18", history: ["Eczema"], allergy: [] },
+            { name: "Sadia Imam", phone: "+923210000000", email: "sadia.i@example.com", dob: "1980-02-28", history: ["Anxiety"], allergy: ["Aspirin"] },
+            { name: "Kamran Akmal", phone: "+923221111111", email: "kamran.a@example.com", dob: "2000-07-07", history: [], allergy: [] },
+            { name: "Mahira Khan", phone: "+923222222222", email: "mahira.k@example.com", dob: "1993-10-10", history: ["Hypothyroidism"], allergy: [] }
         ];
 
         const insertedPatients = [];
         for (const p of patientProfiles) {
-            await patients.updateOne(
-                { phone: p.phone },
-                {
-                    $set: {
-                        name: p.name,
-                        email: p.email,
-                        phone: p.phone,
-                        dob: new Date(p.dob),
-                        address: `${Math.floor(Math.random() * 999) + 1} Random St, Cityville`,
-                        medicalHistory: p.history,
-                        allergies: p.allergy,
-                        notes: "Regular patient.",
-                        lastVisit: new Date(new Date().setDate(new Date().getDate() - Math.floor(Math.random() * 100))),
-                        updatedAt: new Date()
-                    },
-                    $setOnInsert: {
-                        _id: new ObjectId(),
-                        createdAt: new Date()
-                    }
-                },
-                { upsert: true }
-            );
-            const insertedPatient = await patients.findOne({ phone: p.phone });
-            if (insertedPatient) insertedPatients.push(insertedPatient);
+            const result = await patients.insertOne({
+                name: p.name,
+                email: p.email,
+                phone: p.phone,
+                dob: new Date(p.dob),
+                address: `${Math.floor(Math.random() * 99) + 1} Block ${Math.floor(Math.random() * 10)}, Gulshan-e-Iqbal, Karachi`,
+                medicalHistory: p.history,
+                allergies: p.allergy,
+                notes: "Regular patient.",
+                lastVisit: new Date(new Date().setDate(new Date().getDate() - Math.floor(Math.random() * 100))),
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+            insertedPatients.push({ ...p, _id: result.insertedId });
         }
         console.log(`✅ Seeded ${insertedPatients.length} patients`);
 
@@ -262,8 +272,6 @@ async function seed() {
         }
 
         if (appointmentData.length > 0) {
-            await appointments.deleteMany({});
-            console.log("Cleared existing appointments for fresh seed.");
             await appointments.insertMany(appointmentData as any);
         }
 
@@ -274,7 +282,6 @@ async function seed() {
         console.error("❌ Seeding failed:", error);
         process.exit(1);
     } finally {
-        // Wait a small bit before exit to ensure logs flush
         setTimeout(() => process.exit(0), 100);
     }
 }

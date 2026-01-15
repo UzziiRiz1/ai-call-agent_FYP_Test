@@ -12,11 +12,10 @@ export type { IUser } from "../models/User"
 export type { IDoctor } from "../models/Doctor"
 export type { IAppointment, AppointmentStatus } from "../models/Appointment"
 export type { ICall } from "../models/Call"
+export type { IPatient } from "../models/Patient"
 
-// Declare ICall before using it
-export type ICall = {}
-
-export interface Call extends ICall {}
+// Re-export ICall as Call for convenience
+export type { ICall as Call } from "../models/Call"
 
 export interface User {
   _id?: string
@@ -35,5 +34,3 @@ export interface DashboardStats {
   averageDuration: number
   intentDistribution: Record<CallIntent, number>
 }
-
-export type { CallStatus, CallIntent, Priority } from "../models/Call"

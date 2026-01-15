@@ -14,10 +14,17 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const limit = Number.parseInt(searchParams.get("limit") || "50")
 
+    // Handle "active" status query to include "in-progress" as well
+    // (Twilio calls have status "in-progress", dashboard queries for "active")
     const db = await getDb()
     const callsCollection = db.collection("calls")
 
-    const query = status ? { status } : {}
+    let query: any = {}
+    if (status === "active") {
+      query = { status: { $in: ["active", "in-progress"] } }
+    } else if (status) {
+      query = { status }
+    }
 
     const calls = await callsCollection.find(query).sort({ timestamp: -1 }).limit(limit).toArray()
 

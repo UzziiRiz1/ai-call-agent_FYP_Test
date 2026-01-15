@@ -1,112 +1,42 @@
 import type { CallIntent } from "@/lib/types"
+// [CRITICAL] This import must match the exported function name exactly
 import { classifyIntentWithGPT } from "@/lib/openai-client"
 
 const INTENT_KEYWORDS: Record<CallIntent, string[]> = {
-  appointment: [
-    "appointment",
-    "schedule",
-    "book",
-    "visit",
-    "meeting",
-    "consultation",
-    "see doctor",
-    "check-up",
-    "follow-up",
-    "reschedule",
-    "cancel appointment",
-  ],
-  prescription: [
-    "prescription",
-    "medication",
-    "medicine",
-    "refill",
-    "drug",
-    "pills",
-    "pharmacy",
-    "dosage",
-    "treatment",
-    "antibiotics",
-  ],
-  general_inquiry: [
-    "question",
-    "information",
-    "inquiry",
-    "ask",
-    "know",
-    "tell me",
-    "wondering",
-    "curious",
-    "hours",
-    "location",
-    "insurance",
-    "billing",
-  ],
-  emergency: [
-    "emergency",
-    "urgent",
-    "help",
-    "pain",
-    "bleeding",
-    "accident",
-    "chest pain",
-    "can't breathe",
-    "unconscious",
-    "seizure",
-    "overdose",
-    "severe",
-  ],
+  appointment: ["appointment", "schedule", "book", "visit", "meeting", "consultation"],
+  prescription: ["prescription", "medication", "medicine", "refill", "pharmacy"],
+  general_inquiry: ["question", "help", "information", "inquiry", "ask", "know"],
+  emergency: ["emergency", "urgent", "ambulance", "911", "help me", "dying", "pain", "chest", "bleeding"],
+  outbound_notification: ["notification", "alert", "reminder"],
+  unknown: [],
 }
 
-export async function classifyIntentWithAI(transcript: string): Promise<CallIntent> {
+export async function classifyIntent(transcript: string): Promise<CallIntent> {
+  // Try GPT first for better accuracy
   try {
-    const result = await classifyIntentWithGPT(transcript)
-    console.log("[v0] AI Intent Classification:", result)
-    return result.intent
+    const gptResult = await classifyIntentWithGPT(transcript)
+    if (gptResult.intent !== "unknown") {
+      return gptResult.intent
+    }
   } catch (error) {
-    console.error("[v0] Falling back to keyword-based classification:", error)
-    return classifyIntent(transcript)
+    console.warn("GPT classification failed, falling back to keywords")
   }
-}
 
-export function classifyIntent(transcript: string): CallIntent {
+  // Fallback to basic keyword matching
   const lowerTranscript = transcript.toLowerCase()
-
-  // Emergency takes highest priority
-  const emergencyScore = countKeywordMatches(lowerTranscript, INTENT_KEYWORDS.emergency)
-  if (emergencyScore > 0) {
+  
+  // Emergency check first (priority)
+  if (INTENT_KEYWORDS.emergency.some(k => lowerTranscript.includes(k))) {
     return "emergency"
   }
 
-  // Calculate scores for other intents
-  const scores: Record<CallIntent, number> = {
-    appointment: countKeywordMatches(lowerTranscript, INTENT_KEYWORDS.appointment),
-    prescription: countKeywordMatches(lowerTranscript, INTENT_KEYWORDS.prescription),
-    general_inquiry: countKeywordMatches(lowerTranscript, INTENT_KEYWORDS.general_inquiry),
-    emergency: 0,
+  // Check other intents
+  for (const [intent, keywords] of Object.entries(INTENT_KEYWORDS)) {
+    if (intent === "emergency") continue
+    if (keywords.some(k => lowerTranscript.includes(k))) {
+      return intent as CallIntent
+    }
   }
 
-  // Find intent with highest score
-  const maxScore = Math.max(...Object.values(scores))
-
-  if (maxScore === 0) {
-    return "general_inquiry" // Default to general inquiry if no keywords matched
-  }
-
-  const intent = (Object.keys(scores) as CallIntent[]).find((key) => scores[key] === maxScore)
-
-  return intent || "general_inquiry"
-}
-
-function countKeywordMatches(text: string, keywords: string[]): number {
-  return keywords.reduce((count, keyword) => {
-    return count + (text.includes(keyword) ? 1 : 0)
-  }, 0)
-}
-
-export function getIntentConfidence(transcript: string, intent: CallIntent): number {
-  const lowerTranscript = transcript.toLowerCase()
-  const matches = countKeywordMatches(lowerTranscript, INTENT_KEYWORDS[intent])
-  const totalWords = transcript.split(" ").length
-
-  return Math.min((matches / Math.max(totalWords * 0.1, 1)) * 100, 100)
+  return "general_inquiry"
 }

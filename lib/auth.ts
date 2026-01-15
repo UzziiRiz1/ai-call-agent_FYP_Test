@@ -2,9 +2,14 @@ import { SignJWT, jwtVerify } from "jose"
 import { cookies } from "next/headers"
 import bcrypt from "bcryptjs"
 
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this-in-production-min-32-chars-long",
-)
+// SECURE: Ensure JWT_SECRET is set
+const JWT_SECRET = process.env.JWT_SECRET
+
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  throw new Error("JWT_SECRET is missing or too short. Set a secure key (min 32 chars) in .env.local")
+}
+
+const SECRET_KEY = new TextEncoder().encode(JWT_SECRET)
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10)

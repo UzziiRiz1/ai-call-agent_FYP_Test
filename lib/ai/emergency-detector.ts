@@ -2,6 +2,7 @@ import type { Priority } from "@/lib/types"
 import { detectEmergencyWithGPT } from "@/lib/openai-client"
 
 const EMERGENCY_KEYWORDS = [
+   // ENglish
   "emergency",
   "urgent",
   "help me",
@@ -21,6 +22,11 @@ const EMERGENCY_KEYWORDS = [
   "ambulance",
   "911",
   "critical",
+
+  // Urdu (Roman / Transliterated)
+  "madad", "bachao", "dard", "khoon", "behosh", "saans",
+  "dil ka dora", "hapat", "emergency", "ambulance",
+  "chot lagi", "mar raha"
 ]
 
 const HIGH_PRIORITY_KEYWORDS = [

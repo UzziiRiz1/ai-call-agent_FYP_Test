@@ -6,7 +6,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
- 
+  allowedDevOrigins: [
+    "unrestrictively-premedieval-shauna.ngrok-free.dev",
+  ],
 }
 
 export default nextConfig

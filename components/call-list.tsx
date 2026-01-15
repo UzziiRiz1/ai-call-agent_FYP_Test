@@ -15,6 +15,7 @@ export function CallList({ calls, title }: CallListProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
+      case "in-progress":
         return "bg-blue-500/10 text-blue-600 border-blue-500/20"
       case "completed":
         return "bg-green-500/10 text-green-600 border-green-500/20"
@@ -39,7 +40,19 @@ export function CallList({ calls, title }: CallListProps) {
   }
 
   const getIntentLabel = (intent: string) => {
-    return intent.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())
+    return intent ? intent.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase()) : "Unknown"
+  }
+
+  // [FIX] Helper to prevent crashing on invalid dates
+  const formatDateSafely = (dateInput: Date | string | undefined) => {
+    try {
+      if (!dateInput) return "Unknown time";
+      const date = new Date(dateInput);
+      if (isNaN(date.getTime())) return "Invalid time";
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch (error) {
+      return "Unknown time";
+    }
   }
 
   return (
@@ -56,15 +69,16 @@ export function CallList({ calls, title }: CallListProps) {
             <p>No calls to display</p>
           </div>
         ) : (
-          calls.map((call) => (
+          calls.map((call, index) => (
             <div
-              key={call.callId}
+              // [FIX] Uses callId OR _id OR index as fallback to ensure unique key
+              key={call.callId || (call as any)._id?.toString() || index}
               className="p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors"
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="font-semibold text-foreground">{call.patientName}</p>
+                    <p className="font-semibold text-foreground">{call.patientName || "Unknown Caller"}</p>
                     {call.emergencyDetected && (
                       <AlertTriangle className="h-4 w-4 text-destructive" title="Emergency Detected" />
                     )}
@@ -86,9 +100,10 @@ export function CallList({ calls, title }: CallListProps) {
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  <span>{call.duration}s</span>
+                  <span>{call.duration || 0}s</span>
                 </div>
-                <span>{formatDistanceToNow(new Date(call.timestamp), { addSuffix: true })}</span>
+                {/* [FIX] Uses safe date formatter */}
+                <span>{formatDateSafely(call.timestamp)}</span>
               </div>
 
               {call.transcript && <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{call.transcript}</p>}

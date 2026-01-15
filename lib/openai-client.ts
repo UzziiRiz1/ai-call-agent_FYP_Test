@@ -1,8 +1,6 @@
 import OpenAI from "openai"
 
-const OPENAI_API_KEY =
-  process.env.OPENAI_API_KEY ||
-  "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"
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ""
 
 let openaiInstance: OpenAI | null = null
 
@@ -10,11 +8,13 @@ export function getOpenAIClient(): OpenAI {
   if (!openaiInstance) {
     openaiInstance = new OpenAI({
       apiKey: OPENAI_API_KEY,
+      dangerouslyAllowBrowser: true // Added to prevent client-side errors if used there
     })
   }
   return openaiInstance
 }
 
+// [CRITICAL] Ensure this is explicitly exported
 export async function classifyIntentWithGPT(transcript: string): Promise<{
   intent: "appointment" | "prescription" | "general_inquiry" | "emergency" | "unknown"
   confidence: number

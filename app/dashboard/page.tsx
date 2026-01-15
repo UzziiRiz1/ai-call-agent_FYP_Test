@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { StatsCard } from "@/components/stats-card"
 import { CallList } from "@/components/call-list"
@@ -16,8 +17,10 @@ export default function DashboardPage() {
   const [activeCalls, setActiveCalls] = useState<Call[]>([])
   const [recentCalls, setRecentCalls] = useState<Call[]>([])
   const [loading, setLoading] = useState(true)
+  const lastKnownCallIds = useRef<Set<string>>(new Set())
+  const router = useRouter()
 
-  const fetchData = async () => {
+  const fetchData = async (isInitial = false) => {
     try {
       const [userRes, statsRes, activeRes, recentRes] = await Promise.all([
         fetch("/api/auth/me"),
@@ -38,7 +41,20 @@ export default function DashboardPage() {
 
       if (activeRes.ok) {
         const activeData = await activeRes.json()
-        setActiveCalls(activeData.calls || [])
+        const newCalls: Call[] = activeData.calls || []
+        setActiveCalls(newCalls)
+
+        // Check for new calls to redirect ONLY if not initial load
+        if (!isInitial) {
+          const newCall = newCalls.find((c) => !lastKnownCallIds.current.has(c.callId))
+          if (newCall) {
+            console.log("New call detected, redirecting:", newCall.callId)
+            router.push(`/calls/${newCall.callId}`)
+          }
+        }
+
+        // Update known IDs
+        newCalls.forEach((c) => lastKnownCallIds.current.add(c.callId))
       }
 
       if (recentRes.ok) {
@@ -48,16 +64,17 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error fetching dashboard data:", error)
     } finally {
-      setLoading(false)
+      if (isInitial) setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchData()
+    // Initial fetch
+    fetchData(true)
 
     const pollInterval = setInterval(() => {
-      fetchData()
-    }, 5000)
+      fetchData(false)
+    }, 3000) // Poll every 3 seconds for faster redirect
 
     return () => {
       clearInterval(pollInterval)
@@ -66,17 +83,18 @@ export default function DashboardPage() {
 
   const intentChartData = stats
     ? [
-        { name: "Appointment", value: stats.intentDistribution.appointment || 0 },
-        { name: "Prescription", value: stats.intentDistribution.prescription || 0 },
-        { name: "General Inquiry", value: stats.intentDistribution.general_inquiry || 0 },
-        { name: "Emergency", value: stats.intentDistribution.emergency || 0 },
-      ]
+      { name: "Appointment", value: stats.intentDistribution.appointment || 0 },
+      { name: "Prescription", value: stats.intentDistribution.prescription || 0 },
+      { name: "General Inquiry", value: stats.intentDistribution.general_inquiry || 0 },
+      { name: "Emergency", value: stats.intentDistribution.emergency || 0 },
+    ]
     : []
 
   const handleSimulateCall = async () => {
     try {
       await fetch("/api/calls/simulate", { method: "POST" })
-      setTimeout(() => fetchData(), 1000)
+      // Immediate fetch after simulation to catch it quickly
+      setTimeout(() => fetchData(false), 500)
     } catch (error) {
       console.error("Error simulating call:", error)
     }

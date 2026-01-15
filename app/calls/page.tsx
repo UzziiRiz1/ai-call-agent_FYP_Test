@@ -58,7 +58,12 @@ export default function CallsPage() {
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter((call) => call.status === statusFilter)
+      // Handle "active" filter to include "in-progress" status
+      if (statusFilter === "active") {
+        filtered = filtered.filter((call) => call.status === "active" || call.status === "in-progress")
+      } else {
+        filtered = filtered.filter((call) => call.status === statusFilter)
+      }
     }
 
     setFilteredCalls(filtered)
@@ -67,6 +72,7 @@ export default function CallsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
+      case "in-progress":
         return "bg-blue-500/10 text-blue-600 border-blue-500/20"
       case "completed":
         return "bg-green-500/10 text-green-600 border-green-500/20"

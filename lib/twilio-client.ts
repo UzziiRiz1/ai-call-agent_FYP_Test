@@ -2,10 +2,11 @@ import twilio from "twilio"
 
 let twilioClient: ReturnType<typeof twilio> | null = null
 
-// Hardcoded Twilio credentials with fallback to env vars
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || "AC796bbd69cfe238461bdb63c57f7264d6"
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || "e704ec26e50705358bd9191f1d3062db"
-const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER || "+15394445797"
+// SECURE IMPLEMENTATION: No hardcoded credentials
+// Credentials must be provided via environment variables in .env.local
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN
+const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER
 
 // Initialize Twilio client
 export function getTwilioClient() {
@@ -16,11 +17,13 @@ export function getTwilioClient() {
 
   if (!accountSid || !authToken) {
     throw new Error(
-      "Twilio credentials not configured. Please add TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to your environment variables.",
+      "Twilio credentials not configured. Please add TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to your .env.local file.",
     )
   }
 
-  console.log("[v0] Initializing Twilio client with Account SID:", accountSid.substring(0, 10) + "...")
+  // Only log the first few characters for debugging safety
+  console.log("[v0] Initializing Twilio client with Account SID:", accountSid.substring(0, 4) + "...")
+  
   twilioClient = twilio(accountSid, authToken)
   return twilioClient
 }
@@ -29,7 +32,7 @@ export function getTwilioClient() {
 export function getTwilioPhoneNumber() {
   const phoneNumber = TWILIO_PHONE_NUMBER
   if (!phoneNumber) {
-    throw new Error("Twilio phone number not configured. Please add TWILIO_PHONE_NUMBER to your environment variables.")
+    throw new Error("Twilio phone number not configured. Please add TWILIO_PHONE_NUMBER to your .env.local file.")
   }
   return phoneNumber
 }
